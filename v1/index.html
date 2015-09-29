@@ -168,7 +168,7 @@
 					geometry = new THREE.PlaneBufferGeometry(1000, 1000,500,500);
 					// geometry = new THREE.BoxGeometry(500,500,500,100,100,100);
 					// geometry = new THREE.SphereGeometry(500,500,500);
-					var testTex = THREE.ImageUtils.loadTexture("textures/testTex.jpg");
+					// var testTex = THREE.ImageUtils.loadTexture("textures/testTex.jpg");
 					// material = new THREE.ShaderMaterial( {
 
 					// 	uniforms: {
@@ -186,7 +186,7 @@
 					// 	// depthWrite: false
 
 					// } );
-					material = new THREE.PointCloudMaterial({map: testTex, size: 3.0});
+					material = new THREE.PointCloudMaterial({map: texture});
 					// material = new THREE.MeshBasicMaterial({map: texture});
 
 					mesh = new THREE.PointCloud( geometry, material );
@@ -229,7 +229,7 @@
 			    
 			    
 			    for(var i = 0; i < fbMaterial.fbos.length; i++){
-			      fbMaterial.fbos[i].material.uniforms.mouse.value = new THREE.Vector2(mouseX, mouseY);
+			      // fbMaterial.fbos[i].material.uniforms.mouse.value = new THREE.Vector2(mouseX, mouseY);
 			    }
     
 
@@ -252,8 +252,8 @@
 				// mesh.rotation.x += ( mouse.x*2.0*Math.PI - mesh.rotation.x ) * 0.005;
 				// mesh.rotation.y += ( - mouse.y*2.0*Math.PI - mesh.rotation.y ) * 0.005;
 				// camera.lookAt( center );
-				// mesh.rotation.x = Math.sin(time*0.5)*0.5;
-				// mesh.rotation.y = Math.cos(time*0.5)*0.5;
+				mesh.rotation.x = Math.sin(time*0.5)*0.5;
+				mesh.rotation.y = Math.cos(time*0.5)*0.5;
 
 				renderer.render( scene, camera );
 
@@ -304,7 +304,7 @@
 			        customShaders.blurShader, 
 			        customShaders.diffShader2, 
 			        customShaders.reposShader, 
-			        customShaders2.passShader,
+			        customShaders2.sharpenShader,
 			        customShaders.passShader
 			    ];
 
@@ -337,7 +337,7 @@
 
 			    for(var i = 0; i < fbMaterial.fbos.length; i++){
 			      fbMaterial.fbos[i].material.uniforms.time.value = time;
-			      // fbMaterial.fbos[i].material.uniforms.mouse.value = new THREE.Vector2(Math.sin(time), Math.cos(time));
+			      fbMaterial.fbos[i].material.uniforms.mouse.value = new THREE.Vector2(Math.sin(time), Math.cos(time));
 			    }
 			    fbTexture.needsUpdate = true;
 			        
