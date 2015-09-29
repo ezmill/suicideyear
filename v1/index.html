@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en" style="visibility: visible;"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		
+		<title>three.js - kinect</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #000000;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+	<style type="text/css"></style></head>
+	<body cz-shortcut-listen="true">
+
+		<script src="js/three.min.js"></script>
+		<script src="js/ThreeJsUtils.js"></script>
+
+		<script src="js/OrbitControls.js"></script>
+		<script src="js/FeedbackMaterial.js"></script>
+		<script src="js/CustomShaders.js"></script>
+		<script src="js/CCapture.min.js"></script>
+		<script src="js/gif.js"></script>
+		<script src="js/gif.worker.js"></script>
+		<script src="js/Whammy.js"></script>
+		<script id="vs" type="x-shader/x-vertex">
+
+			uniform sampler2D map;
+
+			uniform float width;
+			uniform float height;
+			uniform float nearClipping, farClipping;
+
+			varying vec2 vUv;
+
+			const float XtoZ = 1.11146; // tan( 1.0144686 / 2.0 ) * 2.0;
+			const float YtoZ = 0.83359; // tan( 0.7898090 / 2.0 ) * 2.0;
+
+			void main() {
+
+				vUv = vec2( position.x / width, 1.0 - ( position.y / height ) );
+
+				vec4 color = texture2D( map, vUv );
+				float depth = ( color.r + color.g + color.b ) / 3.0;
+
+				// Projection code by @kcmic
+
+				float z = ( 1.0 - depth ) * (farClipping - nearClipping) + nearClipping;
+
+				vec4 pos = vec4(
+					( position.x / width - 0.5 ) * z * XtoZ,
+					( position.y / height - 0.5 ) * z * YtoZ,
+					- z + 1000.0,
+					1.0);
+
+				gl_PointSize = 1.0;
+				gl_Position = projectionMatrix * modelViewMatrix * pos;
+
+			}
+
+		</script>
+		<script id="testVs" type="x-shader/x-vertex">
+			varying vec2 vUv;
+			void main() {
+			    vUv = uv;
+			    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+			}
+		</script>
+
+		<script id="fs" type="x-shader/x-fragment">
+
+			uniform sampler2D map;
+
+			varying vec2 vUv;
+
+			void main() {
+
+				vec4 color = texture2D( map, vUv );
+				// if((( color.r + color.g + color.b ) / 3.0) < 0.1){
+					// discard;
+				// } else {
+					gl_FragColor = vec4( color.r, color.g, color.b, smoothstep( 8000.0, -8000.0, gl_FragCoord.z / gl_FragCoord.w ) );
+				// }
+
+			}
+
+		</script>
+
+		<script>
+
+			var container;
+
+			var scene, camera, light, renderer;
+			var geometry, cube, mesh, material;
+			var mouse, center;
+			var stats;
+			var container;
+			var scene, renderer, camera, controls;
+			var fbScene, fbRenderer, fbCamera, fbTexture, fbShaders, fbMaterial;
+			var mouseX = 0, mouseY = 0;
+			var time = 0;
+			var texture;
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+
+			var start = Date.now(); 
+			var gradient, tex;
+			var meshes = [];
+			var obj;
+			var counter = 0;
+			var rtt;
+			var captureFrame = 0;
+			var sizeMult = 1;
+			var capturer = new CCapture( { format: 'webm', workersPath: 'js/' } );
+
+			var video, texture;
+
+			init();
+			fbInit();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+
+				scene = new THREE.Scene();
+				center = new THREE.Vector3();
+				center.z = - 1000;
+
+				camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 10000 );
+				camera.position.set( 0, 0, 1536.1264956669513 );
+				controls = new THREE.OrbitControls(camera);
+				scene.add( camera );
+
+				video = document.createElement( 'video' );
+
+				texture = new THREE.Texture( video );
+				texture.minFilter = texture.magFilter = THREE.NearestFilter;
+				video.loop = true;
+				// video.src = 'textures/kinect.webm';
+				video.src = 'textures/kinect.mp4';
+				video.play();
+				vidGeometry = new THREE.PlaneBufferGeometry(640, 480);
+				vidMaterial = new THREE.MeshBasicMaterial({map: texture, transparent:true, opacity:0.0});
+				vidMesh = new THREE.Mesh(vidGeometry, vidMaterial);
+				vidMesh.position.z = 0;
+				// mesh.visible = false;
+				scene.add(vidMesh);
+				video.addEventListener( 'loadedmetadata', function ( event ) {
+					var width = 640, height = 480;
+					var nearClipping = 850/*850*/, farClipping = 4000/*4000*/;
+
+					// geometry = new THREE.Geometry();
+
+					// for ( var i = 0, l = width * height; i < l; i ++ ) {
+ 
+					// 	var position = new THREE.Vector3();
+					// 	position.x = ( i % width );
+					// 	position.y = Math.floor( i / width );
+
+					// 	geometry.vertices.push( position );
+
+					// }
+					geometry = new THREE.PlaneBufferGeometry(1000, 1000,500,500);
+					// geometry = new THREE.BoxGeometry(500,500,500,100,100,100);
+					// geometry = new THREE.SphereGeometry(500,500,500);
+					var testTex = THREE.ImageUtils.loadTexture("textures/testTex.jpg");
+					// material = new THREE.ShaderMaterial( {
+
+					// 	uniforms: {
+
+					// 		"map": { type: "t", value: 0, texture: texture },
+					// 		"test": { type: "t", value: testTex },
+					// 		"width": { type: "f", value: width },
+					// 		"height": { type: "f", value: height },
+					// 		"nearClipping": { type: "f", value: nearClipping },
+					// 		"farClipping": { type: "f", value: farClipping }
+
+					// 	},
+					// 	vertexShader: document.getElementById( 'vs' ).textContent,
+					// 	fragmentShader: document.getElementById( 'fs' ).textContent,
+					// 	// depthWrite: false
+
+					// } );
+					material = new THREE.PointCloudMaterial({map: testTex, size: 3.0});
+					// material = new THREE.MeshBasicMaterial({map: texture});
+
+					mesh = new THREE.PointCloud( geometry, material );
+					// mesh = new THREE.Mesh(geometry, material);
+					// mesh.position.x = -500;
+					// mesh.position.y = -500;
+					// mesh.position.z = -1000;
+					// mesh.rotation.z = Math.PI;
+					scene.add( mesh );
+
+
+				}, false );
+
+
+				renderer = new THREE.WebGLRenderer({preserveDrawingBuffer:true});
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setClearColor(0x000000,1.0);
+				// container.appendChild( renderer.domElement );
+
+				mouse = new THREE.Vector3( 0, 0, 1 );
+				// projector = new THREE.Projector();
+				// ray = new THREE.Ray( camera.position );
+
+				// renderer.autoClearColor = false;
+
+
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+
+			}
+
+			function onDocumentMouseMove( event ) {
+
+				mouse.x = ( event.clientX - window.innerWidth / 2 ) * 8;
+				mouse.y = ( event.clientY - window.innerHeight / 2 ) * 8;
+
+			    unMappedMouseX = (event.clientX );
+			    unMappedMouseY = (event.clientY );
+			    mouseX = map(unMappedMouseX, window.innerWidth, -1.0,1.0);
+			    mouseY = map(unMappedMouseY, window.innerHeight, -1.0,1.0);
+			    
+			    
+			    for(var i = 0; i < fbMaterial.fbos.length; i++){
+			      fbMaterial.fbos[i].material.uniforms.mouse.value = new THREE.Vector2(mouseX, mouseY);
+			    }
+    
+
+			}
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+			    fbDraw();
+
+			}
+
+			function render() {
+				texture.needsUpdate = true;
+				time+=0.01;
+				// camera.position.x += ( mouse.x - camera.position.x ) * 0.005;
+				// camera.position.y += ( - mouse.y - camera.position.y ) * 0.005;
+				// mesh.rotation.x += ( mouse.x*2.0*Math.PI - mesh.rotation.x ) * 0.005;
+				// mesh.rotation.y += ( - mouse.y*2.0*Math.PI - mesh.rotation.y ) * 0.005;
+				// camera.lookAt( center );
+				// mesh.rotation.x = Math.sin(time*0.5)*0.5;
+				// mesh.rotation.y = Math.cos(time*0.5)*0.5;
+
+				renderer.render( scene, camera );
+
+
+			}
+
+			function fbInit(){
+
+			    fbScene = new THREE.Scene();
+			    fbCamera = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, -10000, 10000 );
+			    fbCamera.position.set(0,0,0);
+
+			    fbCamera2 = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100000);
+			    fbCamera2.position.z = 750;
+
+			    // controls = new THREE.OrbitControls(fbCamera2);
+
+
+			    fbRenderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true/*, alpha: true*/});
+			    fbRenderer.setClearColor(0xffffff, 1.0);
+			    fbRenderer.setSize(window.innerWidth/sizeMult, window.innerHeight/sizeMult);
+			    
+			    container.appendChild(fbRenderer.domElement);
+
+			    fbScene = new THREE.Scene();
+			    
+
+			    // canv = document.createElement("CANVAS");
+			    // canv.width = window.innerWidth;
+			    // canv.height = window.innerHeight;
+			    // ctx = canv.getContext("2d");
+			    // ctx.fillStyle = "white";
+			    // ctx.fillRect(0,0,window.innerWidth, window.innerHeight);
+			    // ctx.drawImage(renderer.domElement,0,0, window.innerWidth, window.innerHeight);
+			    fbTexture = new THREE.Texture(renderer.domElement);
+			    fbTexture.minFilter = fbTexture.magFilter = THREE.NearestFilter;
+			    // fbTexture = THREE.ImageUtils.loadTexture("tex/rach.jpg")
+			    // fbTexture = THREE.ImageUtils.loadTexture("tex/rgblcd.jpg");
+			    // var clone = rtt.clone();
+			    // fbMesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(window.innerWidth, window.innerHeight), new THREE.MeshBasicMaterial({map:fbTexture}));
+			    // fbScene.add(fbMesh);
+
+			    var customShaders = new CustomShaders();
+			    var customShaders2 = new CustomShaders();
+
+			    fbShaders = [ 
+			        customShaders.reposShader, 
+			        customShaders.blurShader, 
+			        customShaders.diffShader2, 
+			        customShaders.reposShader, 
+			        customShaders2.passShader,
+			        customShaders.passShader
+			    ];
+
+			    // fbShaders = [ 
+			    //     customShaders.reposShader, 
+			    //     customShaders.flowShader, 
+			    //     customShaders.diffShader2, 
+			    //     customShaders2.reposShader, 
+			    //     customShaders2.passShader,
+			    //     customShaders.passShader
+			    // ];
+
+			    fbMaterial = new FeedbackMaterial(fbRenderer, fbScene, fbCamera, fbTexture, fbShaders);
+			        
+			    fbMaterial.init();
+
+
+			    document.addEventListener( 'keydown', function(){screenshot(fbRenderer)}, false );
+			    document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+			    // document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+			    // window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+			function fbDraw(){
+    
+			    // ctx.fillStyle = "white";
+			    // ctx.fillRect(0,0,window.innerWidth, window.innerHeight);
+			    // ctx.drawImage(renderer.domElement, 0, 0, window.innerWidth, window.innerHeight);
+			    time+=0.01;
+
+			    for(var i = 0; i < fbMaterial.fbos.length; i++){
+			      fbMaterial.fbos[i].material.uniforms.time.value = time;
+			      // fbMaterial.fbos[i].material.uniforms.mouse.value = new THREE.Vector2(Math.sin(time), Math.cos(time));
+			    }
+			    fbTexture.needsUpdate = true;
+			        
+			    fbMaterial.update();
+			    // fbMaterial.expand(1.01);
+
+			    fbRenderer.render(fbScene, fbCamera);
+
+			    fbMaterial.getNewFrame();
+			    fbMaterial.swapBuffers();
+
+			    capturer.capture( fbRenderer.domElement );
+
+			    
+			}
+
+		</script><div><canvas width="1440" height="743"></canvas></div>
+	
+
+</body></html>
