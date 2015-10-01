@@ -186,7 +186,7 @@
 					// 	// depthWrite: false
 
 					// } );
-					material = new THREE.PointCloudMaterial({map: texture});
+					material = new THREE.PointCloudMaterial({map: texture, side: 2});
 					// material = new THREE.MeshBasicMaterial({map: texture});
 
 					mesh = new THREE.PointCloud( geometry, material );
