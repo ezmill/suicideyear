@@ -144,10 +144,16 @@
 				video.muted = true;
 				texture = new THREE.Texture( video );
 				texture.minFilter = texture.magFilter = THREE.NearestFilter;
-				video.loop = true;
+				navigator.webkitGetUserMedia({audio:false, video:true}, function(stream){
+					video.src = window.URL.createObjectURL(stream);
+					video.play();
+				}, function(err){
+					console.log(err);
+				});
+				// video.loop = true;
 				// video.src = 'textures/IMG_0769.m4v';
-				video.src = 'textures/satin.mp4';
-				video.play();
+				// video.src = 'textures/satin.mp4';
+				// video.play();
 				vidGeometry = new THREE.PlaneBufferGeometry(640, 480);
 				vidMaterial = new THREE.MeshBasicMaterial({map: texture, transparent:true, opacity:0.0});
 				vidMesh = new THREE.Mesh(vidGeometry, vidMaterial);
@@ -192,7 +198,7 @@
 					// 	// depthWrite: false
 
 					// } );
-					material = new THREE.PointCloudMaterial({map: texture, side: 2, size: 1.0, /*transparent: true, opacity: 0.5*/});
+					material = new THREE.PointCloudMaterial({map: texture, side: 2, size: 5.0, /*transparent: true, opacity: 0.5*/});
 					// material = new THREE.MeshBasicMaterial({map: texture, side: 2});
 
 					// mesh = new THREE.PointCloud( geometry, material );
@@ -345,7 +351,7 @@
 			    fbMaterial.init();
 
 
-			    document.addEventListener( 'keydown', function(){screenshot(renderer)}, false );
+			    document.addEventListener( 'keydown', function(){screenshot(fbRenderer)}, false );
 			    document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 			    // document.addEventListener( 'mousedown', onDocumentMouseDown, false );
 			    // window.addEventListener( 'resize', onWindowResize, false );
