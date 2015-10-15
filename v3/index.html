@@ -152,7 +152,7 @@
                           navigator.msGetUserMedia;
 				if(isMobile){
 					video.loop = true;
-					video.src = 'textures/IMG_0769.m4v';
+					video.src = 'textures/satin.mp4';
 					video.play();
 				} else {
 					navigator.getUserMedia({audio:false, video:true}, function(stream){
@@ -210,13 +210,13 @@
 					// 	// depthWrite: false
 
 					// } );
-					if(isMobile){
-						material = new THREE.PointCloudMaterial({color: 0xffffff, side: 2, size: 5.0, /*transparent: true, opacity: 0.5*/});
+					// if(isMobile){
+						// material = new THREE.PointCloudMaterial({color: 0xffffff, side: 2, size: 5.0, /*transparent: true, opacity: 0.5*/});
 	
-					} else {
+					// } else {
 						material = new THREE.PointCloudMaterial({map: texture, side: 2, size: 5.0, /*transparent: true, opacity: 0.5*/});
 
-					}
+					// }
 					// material = new THREE.MeshBasicMaterial({map: texture, side: 2});
 
 					// mesh = new THREE.PointCloud( geometry, material );
