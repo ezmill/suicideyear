@@ -146,12 +146,16 @@
 				video.muted = true;
 				texture = new THREE.Texture( video );
 				texture.minFilter = texture.magFilter = THREE.NearestFilter;
+				navigator.getUserMedia  = navigator.getUserMedia ||
+                          navigator.webkitGetUserMedia ||
+                          navigator.mozGetUserMedia ||
+                          navigator.msGetUserMedia;
 				if(isMobile){
 					video.loop = true;
 					video.src = 'textures/IMG_0769.m4v';
 					video.play();
 				} else {
-					navigator.webkitGetUserMedia({audio:false, video:true}, function(stream){
+					navigator.getUserMedia({audio:false, video:true}, function(stream){
 						video.src = window.URL.createObjectURL(stream);
 						video.play();
 					}, function(err){
